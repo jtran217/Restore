@@ -74,10 +74,10 @@ function createTrayIcon() {
   const size = process.platform === 'darwin' ? 22 : 16
   const trayImage = image.resize({ width: size, height: size })
   tray = new Tray(trayImage)
-  tray.setToolTip('Corgi App')
+  tray.setToolTip('Restore')
   const contextMenu = Menu.buildFromTemplate([
     {
-      label: 'Show App',
+      label: 'Show Restore',
       click: () => showOrCreateWindow(),
     },
     { type: 'separator' },
