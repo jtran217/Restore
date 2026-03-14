@@ -29,6 +29,10 @@ let tray: Tray | null = null
 
 function createWindow() {
   win = new BrowserWindow({
+    width: 1280,
+    height: 800,
+    minWidth: 900,
+    minHeight: 600,
     icon: path.join(process.env.VITE_PUBLIC, 'app.png'),
     webPreferences: {
       preload: path.join(__dirname, 'preload.mjs'),

@@ -1,14 +1,25 @@
-import Button from "./components/Button";
+import { HashRouter, Routes, Route } from 'react-router-dom';
+import { AppLayout } from './components/AppLayout';
+import { Home } from './screens/Home';
+import { FocusMode } from './screens/FocusMode';
+import { SessionSummary } from './screens/SessionSummary';
+import { Journal } from './screens/Journal';
 
-/**
- * Design system showcase — Warm Daylight (docs/design.md v2.0)
- * Cream, terracotta gold, moss green, burnt sienna, dusk violet.
- */
 function App() {
   return (
-    <div className="min-h-screen bg-bg text-text-primary p-8">
-      <Button>Button</Button>
-    </div>
+    <HashRouter>
+      <Routes>
+        {/* Screens with sidebar */}
+        <Route element={<AppLayout />}>
+          <Route path="/" element={<Home />} />
+          <Route path="/journal" element={<Journal />} />
+        </Route>
+
+        {/* Full-screen screens (no sidebar) */}
+        <Route path="/focus" element={<FocusMode />} />
+        <Route path="/summary" element={<SessionSummary />} />
+      </Routes>
+    </HashRouter>
   );
 }
 
