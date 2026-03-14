@@ -69,7 +69,6 @@ function createTrayIcon() {
   }
   const iconPath = path.join(process.env.VITE_PUBLIC!, 'corgi_icon.png')
   const image = nativeImage.createFromPath(iconPath)
-  console.log("Creating Menu Item")
   // macOS menu bar: 22x22; Windows system tray: 16x16
   const size = process.platform === 'darwin' ? 22 : 16
   const trayImage = image.resize({ width: size, height: size })
