@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useSessionStore } from '../store/sessionStore';
+import { postJournal } from '../lib/api';
 
 type Phase = 'acknowledge' | 'decompress' | 'refocus';
 
@@ -25,7 +26,7 @@ function StepperDots({ current }: { current: number }) {
 }
 
 export function Intervention() {
-  const { resumeFocus } = useSessionStore();
+  const { resumeFocus, currentSession } = useSessionStore();
   const [phase, setPhase] = useState<Phase>('acknowledge');
   const [userTask, setUserTask] = useState('');
 
@@ -34,7 +35,16 @@ export function Intervention() {
   const advance = () => {
     if (phase === 'acknowledge') setPhase('decompress');
     else if (phase === 'decompress') setPhase('refocus');
-    else resumeFocus();
+    else {
+      if (currentSession?.sessionId) {
+        postJournal(
+          currentSession.sessionId,
+          'overwhelming_trigger',
+          userTask || 'Refocused.'
+        );
+      }
+      resumeFocus();
+    }
   };
 
   return (

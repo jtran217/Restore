@@ -30,6 +30,13 @@ def main():
     title_label = tk.Label(root, text="Heart Rate Controller", font=("", 11))
     title_label.pack(pady=(12, 4))
 
+    session_frame = tk.Frame(root)
+    session_frame.pack(pady=(4, 8))
+    tk.Label(session_frame, text="Session ID:", font=("", 9)).pack(anchor="w")
+    session_id_var = tk.StringVar(value="")
+    session_entry = tk.Entry(session_frame, textvariable=session_id_var, width=32)
+    session_entry.pack(anchor="w", pady=(2, 0))
+
     bpm_var = tk.StringVar(value="72")
     bpm_label = tk.Label(root, textvariable=bpm_var, font=("TkDefaultFont", 48))
     bpm_label.pack(pady=4)
@@ -131,12 +138,14 @@ def main():
         nonlocal after_id, current_session_id
         if after_id is not None:
             return
-        current_session_id = f"test-session-{int(time.time() * 1000)}"
+        entered = session_id_var.get().strip()
+        current_session_id = entered if entered else f"test-session-{int(time.time() * 1000)}"
         btn_start.config(text="Stop", bg="#D85A30")
         btn_minus.config(state="normal")
         btn_plus.config(state="normal")
         btn_minus10.config(state="normal")
         btn_plus10.config(state="normal")
+        session_entry.config(state="disabled")
         set_status("Running…")
         tick()
 
@@ -147,6 +156,7 @@ def main():
         root.after_cancel(after_id)
         after_id = None
         current_session_id = None
+        session_entry.config(state="normal")
         btn_start.config(text="Start", bg="#BA7517")
         btn_minus.config(state="disabled")
         btn_plus.config(state="disabled")

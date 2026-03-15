@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { getHeartRateLatest } from '../lib/api';
 
 export type CognitiveState = 'calm' | 'normal' | 'elevated' | 'overload';
 
@@ -17,7 +18,8 @@ interface HeartRateStore {
   isConnected: boolean;
 
   updateHR: (value: number) => void;
-  startMockHR: () => () => void;
+  startMockHR: (onHRUpdate?: (bpm: number) => void) => () => void;
+  startBackendPoll: (sessionId: string) => () => void;
 }
 
 function computeCognitiveState(hr: number): CognitiveState {
@@ -57,7 +59,7 @@ export const useHeartRateStore = create<HeartRateStore>((set, get) => ({
     });
   },
 
-  startMockHR: () => {
+  startMockHR: (onHRUpdate?: (bpm: number) => void) => {
     let baseHR = 68;
     let trend = 0;
 
@@ -70,13 +72,25 @@ export const useHeartRateStore = create<HeartRateStore>((set, get) => ({
       baseHR += trend * 0.3 + noise * 0.2;
       baseHR = Math.max(55, Math.min(115, baseHR));
 
-      get().updateHR(Math.round(baseHR));
+      const bpm = Math.round(baseHR);
+      get().updateHR(bpm);
+      onHRUpdate?.(bpm);
     }, 2000);
 
     return () => {
       clearInterval(interval);
       set({ isConnected: false });
     };
+  },
+
+  startBackendPoll: (sessionId: string) => {
+    const poll = async () => {
+      const data = await getHeartRateLatest(sessionId);
+      if (data?.bpm != null) get().updateHR(data.bpm);
+    };
+    poll();
+    const interval = setInterval(poll, 1500);
+    return () => clearInterval(interval);
   },
 }));
 

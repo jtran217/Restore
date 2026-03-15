@@ -5,6 +5,7 @@ import { useSessionStore } from '../store/sessionStore';
 import { useActivityStore } from '../store/activityStore';
 import { PulseDot } from '../components/PulseDot';
 import { Intervention } from './Intervention';
+import { postHeartRate } from '../lib/api';
 
 function formatTime(ms: number): string {
   const totalSeconds = Math.floor(ms / 1000);
@@ -15,7 +16,7 @@ function formatTime(ms: number): string {
 
 export function FocusMode() {
   const navigate = useNavigate();
-  const { cognitiveState, currentHR, hrHistory, hrStrain, startMockHR } =
+  const { cognitiveState, hrHistory, hrStrain, startMockHR, startBackendPoll } =
     useHeartRateStore();
   const { currentSession, endSession, sessionState, triggerIntervention } =
     useSessionStore();
@@ -33,10 +34,21 @@ export function FocusMode() {
     sedentaryStrain
   );
 
+  const sessionId = currentSession?.sessionId;
+
   useEffect(() => {
-    const cleanup = startMockHR();
+    const onHRUpdate = sessionId
+      ? (bpm: number) => postHeartRate(sessionId, bpm)
+      : undefined;
+    const cleanup = startMockHR(onHRUpdate);
     return cleanup;
-  }, [startMockHR]);
+  }, [startMockHR, sessionId]);
+
+  useEffect(() => {
+    if (!sessionId) return;
+    const cleanup = startBackendPoll(sessionId);
+    return cleanup;
+  }, [sessionId, startBackendPoll]);
 
   useEffect(() => {
     const cleanup = startTracking();
@@ -63,6 +75,12 @@ export function FocusMode() {
     setMenuTimer(timer);
   }, [menuTimer]);
 
+  const handleCopySessionId = useCallback(() => {
+    if (!sessionId) return;
+    navigator.clipboard.writeText(sessionId);
+  }, [sessionId]);
+
+  const currentHR = useHeartRateStore((s) => s.currentHR);
   const handleEndSession = () => {
     const avgHR =
       hrHistory.length > 0
@@ -117,6 +135,23 @@ export function FocusMode() {
             onClick={() => triggerIntervention()}
           >
             Take a break
+          </button>
+        </div>
+      )}
+
+      {/* Session ID — copyable */}
+      {sessionId && (
+        <div
+          className="absolute top-6 left-1/2 -translate-x-1/2 text-text-tertiary"
+          style={{ fontSize: 'var(--text-xs)', letterSpacing: 'var(--tracking-wide)' }}
+        >
+          <button
+            type="button"
+            onClick={handleCopySessionId}
+            className="hover:text-text-secondary transition-colors bg-transparent border-none cursor-pointer font-mono"
+            title="Copy session ID"
+          >
+            Session: {sessionId}
           </button>
         </div>
       )}
