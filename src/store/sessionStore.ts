@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { postJournal, postSessionSummary, postActiveSession, clearActiveSession } from '../lib/api';
 
 export type SessionState = 'idle' | 'focus' | 'intervention' | 'summary';
+export type PomodoroPhase = 'work' | 'break';
 
 interface SessionData {
   sessionId?: string;
@@ -22,6 +23,8 @@ interface SessionStore {
   currentSession: SessionData | null;
   pastSessions: SessionData[];
   isPaused: boolean;
+  pomodoroPhase: PomodoroPhase;
+  pomodoroRound: number;
 
   startSession: () => void;
   endSession: (data?: Partial<SessionData>) => void;
@@ -30,6 +33,8 @@ interface SessionStore {
   saveToJournal: (reflectionText?: string) => void;
   pauseSession: () => void;
   resumeSession: () => void;
+  setPomodoroPhase: (phase: PomodoroPhase) => void;
+  incrementPomodoroRound: () => void;
 }
 
 export const useSessionStore = create<SessionStore>((set, get) => ({
@@ -37,6 +42,8 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
   currentSession: null,
   pastSessions: JSON.parse(localStorage.getItem('flow-sessions') || '[]'),
   isPaused: false,
+  pomodoroPhase: 'work',
+  pomodoroRound: 1,
 
   startSession: () => {
     const sessionId = `flow-session-${Date.now()}`;
@@ -51,6 +58,8 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
         peakStrain: 0,
         focusQuality: 0,
       },
+      pomodoroPhase: 'work',
+      pomodoroRound: 1,
     });
   },
 
@@ -90,6 +99,14 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
 
   resumeSession: () => {
     set({ isPaused: false });
+  },
+
+  setPomodoroPhase: (phase: PomodoroPhase) => {
+    set({ pomodoroPhase: phase });
+  },
+
+  incrementPomodoroRound: () => {
+    set((state) => ({ pomodoroRound: state.pomodoroRound + 1 }));
   },
 
   saveToJournal: (reflectionText?: string) => {
