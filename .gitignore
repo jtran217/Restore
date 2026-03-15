@@ -26,3 +26,5 @@ dist-ssr
 # Electron build outputs
 dist-electron
 release
+
+.cursor
