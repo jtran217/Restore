@@ -5,6 +5,9 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "start:backend": "node scripts/start-backend.mjs",
+    "start:controller": "cd controller && python app.py",
+    "start:all": "concurrently -n frontend,backend,controller -c blue,green,magenta \"npm run dev\" \"npm run start:backend\" \"npm run start:controller\"",
     "build:backend": "bash scripts/build-backend.sh",
     "build": "npm run build:backend && tsc && vite build && electron-builder",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
@@ -59,7 +62,10 @@
     "directories": {
       "output": "release"
     },
-    "files": ["dist/**/*", "dist-electron/**/*"],
+    "files": [
+      "dist/**/*",
+      "dist-electron/**/*"
+    ],
     "extraResources": [
       {
         "from": "backend-dist/restore-backend",
