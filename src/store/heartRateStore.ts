@@ -9,6 +9,16 @@ interface HRDataPoint {
 }
 
 const BACKEND_FRESH_MS = 2500;
+const STALE_MS = 3000;
+
+/** Parse ISO timestamp; backend sends UTC — treat missing 'Z' as UTC for legacy responses */
+function parseTimestamp(ts: string | undefined): number {
+  if (!ts) return NaN;
+  const hasTz = ts.endsWith('Z') || /[+-]\d{2}:?\d{2}$/.test(ts);
+  const normalized = hasTz ? ts : `${ts.replace(/Z$/, '')}Z`;
+  const parsed = Date.parse(normalized);
+  return isNaN(parsed) ? NaN : parsed;
+}
 
 interface HeartRateStore {
   currentHR: number;
@@ -43,13 +53,13 @@ function computeHRStrain(history: HRDataPoint[]): number {
 const MAX_HISTORY = 180;
 
 export const useHeartRateStore = create<HeartRateStore>((set, get) => ({
-  currentHR: 72,
+  currentHR: 0,
   hrHistory: [],
-  cognitiveState: 'normal',
+  cognitiveState: 'calm',
   hrStrain: 0,
   strainScore: 0,
   isConnected: false,
-  lastBackendUpdate: 0,
+  lastBackendUpdate: Date.now(),
 
   updateHR: (value: number) => {
     const point: HRDataPoint = { value, timestamp: Date.now() };
@@ -95,7 +105,17 @@ export const useHeartRateStore = create<HeartRateStore>((set, get) => ({
   startBackendPoll: (_sessionId: string) => {
     const poll = async () => {
       const data = await getHeartRateActive();
-      if (data?.bpm != null) {
+      if (!data) {
+        get().updateHR(0);
+        set({ lastBackendUpdate: Date.now() });
+        return;
+      }
+      const ts = parseTimestamp(data.timestamp);
+      const isStale = isNaN(ts) || Date.now() - ts > STALE_MS;
+      if (isStale) {
+        get().updateHR(0);
+        set({ lastBackendUpdate: Date.now() });
+      } else if (data.bpm != null) {
         get().updateHR(data.bpm);
         set({ lastBackendUpdate: Date.now() });
       }
@@ -109,7 +129,17 @@ export const useHeartRateStore = create<HeartRateStore>((set, get) => ({
     const poll = async () => {
       let data = await getHeartRateActive();
       if (!data) data = await getHeartRateLive();
-      if (data?.bpm != null) {
+      if (!data) {
+        get().updateHR(0);
+        set({ lastBackendUpdate: Date.now() });
+        return;
+      }
+      const ts = parseTimestamp(data.timestamp);
+      const isStale = isNaN(ts) || Date.now() - ts > STALE_MS;
+      if (isStale) {
+        get().updateHR(0);
+        set({ lastBackendUpdate: Date.now() });
+      } else if (data.bpm != null) {
         get().updateHR(data.bpm);
         set({ lastBackendUpdate: Date.now() });
       }

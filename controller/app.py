@@ -51,7 +51,7 @@ def main():
     title_label = tk.Label(root, text="Heart Rate Controller", font=("", 11))
     title_label.pack(pady=(12, 4))
 
-    bpm_var = tk.StringVar(value="72")
+    bpm_var = tk.StringVar(value="0")
     bpm_label = tk.Label(root, textvariable=bpm_var, font=("TkDefaultFont", 48))
     bpm_label.pack(pady=4)
 
@@ -170,6 +170,7 @@ def main():
         root.after_cancel(after_id)
         after_id = None
         current_session_id = None
+        bpm_var.set("0")
         btn_start.config(text="Start", bg="#BA7517")
         btn_minus.config(state="disabled")
         btn_plus.config(state="disabled")

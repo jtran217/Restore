@@ -41,9 +41,10 @@ def create_app():
         return bpm >= high_threshold or bpm <= low_threshold
 
     def serialize_heart_rate(reading):
+        ts = reading.timestamp.isoformat() + "Z" if reading.timestamp else None
         return {
             "id": reading.id,
-            "timestamp": reading.timestamp.isoformat() if reading.timestamp else None,
+            "timestamp": ts,
             "bpm": reading.bpm,
             "session_id": reading.session_id,
             "is_abnormal": reading.is_abnormal,
