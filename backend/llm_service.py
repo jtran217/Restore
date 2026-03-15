@@ -5,6 +5,7 @@ responses on parse failure or errors.
 """
 import os
 import re
+import sys
 from typing import Any
 
 SENTINEL_FILENAME = ".flow_llm_ready"
@@ -13,9 +14,13 @@ SENTINEL_FILENAME = ".flow_llm_ready"
 def _sentinel_path() -> str:
     """Path to file that marks model as already downloaded (first boot done)."""
     base = os.environ.get("FLOW_USER_DATA")
-    if not base or not os.path.isdir(base):
-        base = os.getcwd()
-    return os.path.join(base, SENTINEL_FILENAME)
+    if base and os.path.isdir(base):
+        return os.path.join(base, SENTINEL_FILENAME)
+    # Packaged app: sentinel is bundled next to the executable
+    if getattr(sys, "frozen", False):
+        base = os.path.dirname(sys.executable)
+        return os.path.join(base, SENTINEL_FILENAME)
+    return os.path.join(os.getcwd(), SENTINEL_FILENAME)
 
 
 def is_ready() -> bool:

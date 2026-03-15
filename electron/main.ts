@@ -49,6 +49,43 @@ function startBackend() {
   })
 }
 
+/** Wait for backend to listen on port (production only). */
+function waitForBackendPort(port: number, maxWaitMs: number): Promise<void> {
+  return new Promise((resolve) => {
+    const deadline = Date.now() + maxWaitMs
+    const tryConnect = () => {
+      const req = http.request(
+        { host: '127.0.0.1', port, path: '/api/health', method: 'GET' },
+        (res) => {
+          if (res.statusCode === 200) {
+            resolve()
+            return
+          }
+          if (Date.now() >= deadline) {
+            resolve()
+            return
+          }
+          setTimeout(tryConnect, 300)
+        }
+      )
+      req.on('error', () => {
+        if (Date.now() >= deadline) {
+          resolve()
+          return
+        }
+        setTimeout(tryConnect, 300)
+      })
+      req.setTimeout(2000, () => {
+        req.destroy()
+        if (Date.now() >= deadline) resolve()
+        else setTimeout(tryConnect, 300)
+      })
+      req.end()
+    }
+    tryConnect()
+  })
+}
+
 function stopBackend() {
   if (backendProcess) {
     backendProcess.kill()
@@ -341,8 +378,11 @@ app.on('before-quit', () => {
   stopBackend()
 })
 
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
   startBackend()
+  if (!VITE_DEV_SERVER_URL) {
+    await waitForBackendPort(39762, 15000)
+  }
   createWindow()
   createTrayIcon()
 

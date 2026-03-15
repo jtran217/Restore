@@ -70,6 +70,10 @@
       {
         "from": "backend-dist/restore-backend",
         "to": "backend/restore-backend"
+      },
+      {
+        "from": "backend/.flow_llm_ready",
+        "to": "backend/.flow_llm_ready"
       }
     ],
     "icon": "public/main_icon.png",
