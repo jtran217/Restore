@@ -1,5 +1,20 @@
 # React + TypeScript + Vite
 
+## Run full stack
+
+To start the frontend, backend, and heart-rate controller together:
+
+```bash
+npm install
+npm run start:all
+```
+
+First-time setup: create a virtualenv in `backend/` and install `backend/requirements.txt`. The launcher uses `backend/.venv` automatically if present.
+
+This launches the Vite dev server, Flask API (port 5000), and the controller GUI. See [controller/README.md](controller/README.md) for syncing the controller with the app.
+
+---
+
 This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
 
 Currently, two official plugins are available:
