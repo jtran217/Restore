@@ -9,7 +9,12 @@ npm install
 npm run start:all
 ```
 
-First-time setup: create a virtualenv in `backend/` and install `backend/requirements.txt`. The launcher uses `backend/.venv` automatically if present.
+**First-time setup:**
+
+- **Windows:** `cd backend` → `python -m venv .venv` → `.venv\Scripts\pip install -r requirements.txt`
+- **macOS/Linux:** `cd backend` → `python3 -m venv .venv` → `.venv/bin/pip install -r requirements.txt`
+
+The launcher uses `backend/.venv` automatically if present.
 
 This launches the Vite dev server, Flask API (port 5000), and the controller GUI. See [controller/README.md](controller/README.md) for syncing the controller with the app.
 
