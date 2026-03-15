@@ -3,7 +3,7 @@
  * In dev, use relative path so Vite proxies /api to backend (avoids CORS).
  * In production (Electron), use full URL.
  */
-const API_BASE = import.meta.env.DEV ? '' : 'http://127.0.0.1:39762';
+export const API_BASE = import.meta.env.DEV ? '' : 'http://127.0.0.1:39762';
 
 async function request<T>(
   path: string,
@@ -190,5 +190,30 @@ export async function getActiveSession(): Promise<{ session_id: string } | null>
   } catch (e) {
     console.warn('[api] getActiveSession', e);
     return null;
+  }
+}
+
+/** LLM first-boot: true if model is already downloaded and ready. */
+export async function getLlmStatus(): Promise<{ ready: boolean } | null> {
+  try {
+    const res = await fetch(`${API_BASE}/api/llm/status`);
+    if (!res.ok) return null;
+    return (await res.json()) as { ready: boolean };
+  } catch (e) {
+    console.warn('[api] getLlmStatus', e);
+    return null;
+  }
+}
+
+/** LLM first-boot: ensure model is downloaded; returns true on success. */
+export async function ensureLlmReady(): Promise<boolean> {
+  try {
+    const res = await fetch(`${API_BASE}/api/llm/ensure-ready`, { method: 'POST' });
+    if (!res.ok) return false;
+    const data = (await res.json()) as { ready?: boolean };
+    return data.ready === true;
+  } catch (e) {
+    console.warn('[api] ensureLlmReady', e);
+    return false;
   }
 }

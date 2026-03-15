@@ -1,8 +1,7 @@
 import { app, BrowserWindow, Tray, nativeImage, Menu, ipcMain, powerMonitor } from 'electron'
-import { execFileSync, execSync, spawn, ChildProcess } from 'node:child_process'
+import { execSync, spawn, ChildProcess } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
 import path from 'node:path'
-import fs from 'node:fs'
 import http from 'node:http'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
@@ -30,27 +29,6 @@ let tray: Tray | null = null
 let focusSessionActive = false
 let sessionElapsedMs = 0
 let backendProcess: ChildProcess | null = null
-
-function resolveDevPython(appRoot: string): string {
-  const isWin = process.platform === 'win32'
-  const binDir = isWin ? 'Scripts' : 'bin'
-  const pyExe = isWin ? 'python.exe' : 'python'
-  const candidates = [
-    path.join(appRoot, '.venv', binDir, pyExe),
-    path.join(appRoot, 'backend', '.venv', binDir, pyExe),
-  ]
-  const venvPython = candidates.find((p) => fs.existsSync(p))
-  if (venvPython) return venvPython
-  for (const cmd of ['python3', 'python']) {
-    try {
-      execFileSync(cmd, ['--version'], { stdio: 'ignore' })
-      return cmd
-    } catch {
-      // not found
-    }
-  }
-  return 'python3'
-}
 
 function startBackend() {
   // In dev, start:all runs start:backend separately using backend/app.db. Do NOT spawn

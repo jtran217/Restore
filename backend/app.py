@@ -8,6 +8,7 @@ from flask import Flask, request, jsonify
 from flask_cors import CORS
 
 import db
+import llm_service
 import models
 
 # Fallback thresholds when session has fewer than 2 readings (can't compute std)
@@ -85,6 +86,64 @@ def create_app():
     @app.route("/api/health")
     def health():
         return jsonify({"status": "ok"})
+
+    @app.route("/api/llm/status")
+    def get_llm_status():
+        return jsonify({"ready": llm_service.is_ready()}), 200
+
+    @app.route("/api/llm/ensure-ready", methods=["POST"])
+    def post_llm_ensure_ready():
+        try:
+            llm_service.ensure_ready()
+            return jsonify({"ready": True}), 200
+        except Exception as e:
+            return jsonify({"error": str(e), "ready": False}), 503
+
+    @app.route("/api/llm/ground", methods=["POST"])
+    def post_llm_ground():
+        data = request.get_json(silent=True)
+        if data is None or not isinstance(data, dict):
+            return jsonify({"error": "Request body must be valid JSON"}), 400
+        emotion = data.get("emotion")
+        detail = data.get("detail")
+        if emotion is None:
+            return jsonify({"error": "emotion is required"}), 400
+        if not isinstance(emotion, str) or emotion.strip() == "":
+            return jsonify({"error": "emotion must be a non-empty string"}), 400
+        emotion = emotion.strip().lower()
+        if emotion not in llm_service.VALID_EMOTIONS:
+            return jsonify({"error": "emotion must be one of: anxious, distracted, overwhelmed, frustrated, exhausted, other"}), 400
+        if detail is not None and not isinstance(detail, str):
+            return jsonify({"error": "detail must be a string or null"}), 400
+        try:
+            result = llm_service.get_grounding_suggestions(emotion, detail.strip() if detail else None)
+            return jsonify(result), 200
+        except Exception:
+            fallback = llm_service._fallback_grounding(emotion)
+            return jsonify(fallback), 200
+
+    @app.route("/api/llm/refocus", methods=["POST"])
+    def post_llm_refocus():
+        data = request.get_json(silent=True)
+        if data is None or not isinstance(data, dict):
+            return jsonify({"error": "Request body must be valid JSON"}), 400
+        emotion = data.get("emotion")
+        detail = data.get("detail")
+        if emotion is None:
+            return jsonify({"error": "emotion is required"}), 400
+        if not isinstance(emotion, str) or emotion.strip() == "":
+            return jsonify({"error": "emotion must be a non-empty string"}), 400
+        emotion = emotion.strip().lower()
+        if emotion not in llm_service.VALID_EMOTIONS:
+            return jsonify({"error": "emotion must be one of: anxious, distracted, overwhelmed, frustrated, exhausted, other"}), 400
+        if detail is not None and not isinstance(detail, str):
+            return jsonify({"error": "detail must be a string or null"}), 400
+        try:
+            result = llm_service.get_refocus_suggestions(emotion, detail.strip() if detail else None)
+            return jsonify(result), 200
+        except Exception:
+            fallback = llm_service._fallback_refocus(emotion)
+            return jsonify(fallback), 200
 
     @app.route("/api/active-session", methods=["GET"])
     def get_active_session():

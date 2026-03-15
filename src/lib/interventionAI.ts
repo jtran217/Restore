@@ -1,22 +1,12 @@
 // ─────────────────────────────────────────────────────────────────────────────
 // interventionAI.ts
 //
-// LLM-readiness layer for the Intervention screen's grounding & refocus phases.
-//
-// HOW TO PLUG IN AN LLM LATER:
-//   1. Replace the static lookup tables below with an API call (e.g. OpenAI,
-//      Anthropic, or your own backend route).
-//   2. The function signatures, parameter names, and return types must NOT
-//      change — the UI depends only on these contracts.
-//   3. Pass `emotionKey` (and optionally `freeText`) as the user prompt.
-//
-// Example future swap for getGroundingSuggestions:
-//   const res = await fetch('/api/llm/ground', {
-//     method: 'POST',
-//     body: JSON.stringify({ emotion: emotionKey, detail: freeText }),
-//   });
-//   return res.json() as Promise<GroundingResponse>;
+// LLM layer for the Intervention screen's grounding & refocus phases.
+// Calls backend /api/llm/ground and /api/llm/refocus; falls back to static
+// maps on network or server error.
 // ─────────────────────────────────────────────────────────────────────────────
+
+import { API_BASE } from './api';
 
 /** Emotion keys surfaced by the ground_question phase chip selector. */
 export type EmotionKey =
@@ -156,20 +146,34 @@ const REFOCUS_MAP: Record<EmotionKey, RefocusResponse> = {
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Public API — swap function bodies for LLM calls when ready
+// Public API — calls backend LLM; falls back to static maps on failure
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
  * Returns grounding suggestions tailored to the user's emotional state.
  *
  * @param emotionKey  - The emotion chip the user selected.
- * @param _freeText   - Optional free-text the user typed (passed to LLM later).
+ * @param freeText    - Optional free-text the user typed (passed to LLM).
  */
 export async function getGroundingSuggestions(
   emotionKey: EmotionKey,
-  _freeText?: string
+  freeText?: string
 ): Promise<GroundingResponse> {
-  // TODO: replace with LLM call — pass emotionKey + _freeText as the prompt
+  try {
+    const res = await fetch(`${API_BASE}/api/llm/ground`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ emotion: emotionKey, detail: freeText ?? null }),
+    });
+    if (res.ok) {
+      const data = (await res.json()) as GroundingResponse;
+      if (data?.message && Array.isArray(data?.suggestions)) {
+        return data;
+      }
+    }
+  } catch (e) {
+    console.warn('[interventionAI] getGroundingSuggestions', e);
+  }
   return GROUNDING_MAP[emotionKey] ?? GROUNDING_MAP.other;
 }
 
@@ -177,12 +181,26 @@ export async function getGroundingSuggestions(
  * Returns refocus tips tailored to the user's emotional state.
  *
  * @param emotionKey  - The emotion chip the user selected (same as grounding call).
- * @param _freeText   - Optional free-text the user typed (passed to LLM later).
+ * @param freeText    - Optional free-text the user typed (passed to LLM).
  */
 export async function getRefocusSuggestions(
   emotionKey: EmotionKey,
-  _freeText?: string
+  freeText?: string
 ): Promise<RefocusResponse> {
-  // TODO: replace with LLM call — pass emotionKey + _freeText as the prompt
+  try {
+    const res = await fetch(`${API_BASE}/api/llm/refocus`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ emotion: emotionKey, detail: freeText ?? null }),
+    });
+    if (res.ok) {
+      const data = (await res.json()) as RefocusResponse;
+      if (data?.message && Array.isArray(data?.tips)) {
+        return data;
+      }
+    }
+  } catch (e) {
+    console.warn('[interventionAI] getRefocusSuggestions', e);
+  }
   return REFOCUS_MAP[emotionKey] ?? REFOCUS_MAP.other;
 }
