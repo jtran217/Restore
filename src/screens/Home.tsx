@@ -153,6 +153,19 @@ export function Home() {
           >
             I'm overwhelmed
           </button>
+          <button
+            type="button"
+            className="btn-ghost w-full"
+            style={{ fontSize: 'var(--text-sm)' }}
+            onClick={() => {
+              window.notificationBridge?.showNotification({
+                title: 'Focus check-in',
+                body: "This is a test notification. If you see this, notifications are working.",
+              });
+            }}
+          >
+            Test notification
+          </button>
         </div>
       </div>
     </div>

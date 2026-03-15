@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useState, useEffect } from "react";
 import { HashRouter, Routes, Route, useNavigate } from "react-router-dom";
 import { AppLayout } from "./components/AppLayout";
 import { Home } from "./screens/Home";
@@ -6,6 +6,7 @@ import { FocusMode } from "./screens/FocusMode";
 import { Intervention } from './screens/Intervention';
 import { SessionSummary } from "./screens/SessionSummary";
 import { Journal } from "./screens/Journal";
+import { FirstTimeSetup, isSetupDone } from "./screens/FirstTimeSetup";
 import { useSessionStore } from "./store/sessionStore";
 import { useHeartRateStore } from "./store/heartRateStore";
 
@@ -97,6 +98,18 @@ function TrayFocusSessionSync() {
 }
 
 function App() {
+  const [setupComplete, setSetupComplete] = useState(isSetupDone);
+
+  useEffect(() => {
+    if (isSetupDone()) setSetupComplete(true);
+  }, []);
+
+  if (!setupComplete) {
+    return (
+      <FirstTimeSetup onDone={() => setSetupComplete(true)} />
+    );
+  }
+
   return (
     <HashRouter>
       <TrayImOverwhelmedHandler />

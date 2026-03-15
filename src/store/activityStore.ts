@@ -21,9 +21,16 @@ function extractDomain(url: string): string {
   }
 }
 
+export interface SiteClassification {
+  domain: string;
+  isDistracting: boolean;
+}
+
 interface ActivityStore {
   events: ActivityEvent[];
   tabEvents: TabEvent[];
+  /** Last site classified by backend (Hugging Face); used for distraction notifications */
+  lastSiteClassification: SiteClassification | null;
   distinctApps: number;
   avgDwellTime: number;
   switchesPerMinute: number;
@@ -42,6 +49,7 @@ interface ActivityStore {
 
   addEvent: (event: ActivityEvent) => void;
   addTabEvent: (data: { url: string; title: string; timestamp: number }) => void;
+  setSiteClassification: (domain: string, isDistracting: boolean) => void;
   startTracking: () => () => void;
   stopTracking: () => void;
   reset: () => void;
@@ -175,6 +183,7 @@ function computeMetrics(
 export const useActivityStore = create<ActivityStore>((set, get) => ({
   events: [],
   tabEvents: [],
+  lastSiteClassification: null,
   distinctApps: 0,
   avgDwellTime: 0,
   switchesPerMinute: 0,
@@ -187,6 +196,10 @@ export const useActivityStore = create<ActivityStore>((set, get) => ({
   isExtendedIdle: false,
   isTracking: false,
   trackingStartTime: null,
+
+  setSiteClassification: (domain: string, isDistracting: boolean) => {
+    set({ lastSiteClassification: { domain, isDistracting } });
+  },
 
   addEvent: (event: ActivityEvent) => {
     const now = Date.now();
@@ -222,10 +235,14 @@ export const useActivityStore = create<ActivityStore>((set, get) => ({
       const unsubscribeTabs = window.activityBridge.onTabUpdate((data) => {
         get().addTabEvent(data);
       });
+      const unsubscribeClassification = window.activityBridge.onSiteClassification((data) => {
+        get().setSiteClassification(data.domain, data.isDistracting);
+      });
       return () => {
         window.activityBridge.stopTracking();
         unsubscribeActivity();
         unsubscribeTabs();
+        unsubscribeClassification();
         set({ isTracking: false });
       };
     }
@@ -258,6 +275,7 @@ export const useActivityStore = create<ActivityStore>((set, get) => ({
     set({
       events: [],
       tabEvents: [],
+      lastSiteClassification: null,
       distinctApps: 0,
       avgDwellTime: 0,
       switchesPerMinute: 0,

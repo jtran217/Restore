@@ -29,5 +29,9 @@ interface Window {
     stopTracking(): void
     onUpdate(callback: (data: { app: string; idleSeconds: number; timestamp: number }) => void): () => void
     onTabUpdate(callback: (data: { url: string; title: string; timestamp: number }) => void): () => void
+    onSiteClassification(callback: (data: { domain: string; isDistracting: boolean }) => void): () => void
+  }
+  notificationBridge?: {
+    showNotification(options: { title: string; body: string }): Promise<void>
   }
 }

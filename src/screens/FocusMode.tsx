@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useHeartRateStore, computeFocusStrain } from '../store/heartRateStore';
 import { useSessionStore } from '../store/sessionStore';
 import { useActivityStore } from '../store/activityStore';
+import { getMaxMinutesOnSite } from '../config';
 import { PulseDot } from '../components/PulseDot';
 
 function formatTime(ms: number): string {
@@ -25,7 +26,7 @@ export function FocusMode() {
     pauseSession,
     resumeSession,
   } = useSessionStore();
-  const { contextSwitchScore, distinctApps, avgDwellTime, sedentaryStrain, isExtendedIdle, startTracking, distinctDomains, tabSwitchesPerMinute } =
+  const { contextSwitchScore, distinctApps, avgDwellTime, sedentaryStrain, isExtendedIdle, startTracking, distinctDomains, tabSwitchesPerMinute, lastSiteClassification, tabEvents } =
     useActivityStore();
   const [elapsed, setElapsed] = useState(0);
   const [dismissedIdleCheck, setDismissedIdleCheck] = useState(false);
@@ -33,6 +34,15 @@ export function FocusMode() {
   // Track accumulated pause time so the timer stays accurate across pause/resume cycles
   const pauseOffsetRef = useRef(0);
   const pausedAtRef = useRef<number | null>(null);
+  const lastNotificationAtRef = useRef<number>(0);
+  const lastTimeOnSiteNotificationAtRef = useRef<number>(0);
+  const tabEventsRef = useRef(tabEvents);
+  const lastSiteClassificationRef = useRef(lastSiteClassification);
+  tabEventsRef.current = tabEvents;
+  lastSiteClassificationRef.current = lastSiteClassification;
+  const FOCUS_STRAIN_NOTIFY_THRESHOLD = 65;
+  const NOTIFICATION_DEBOUNCE_MS = 10 * 60 * 1000; // 10 minutes
+  const TIME_ON_SITE_CHECK_INTERVAL_MS = 30 * 1000; // check every 30s
 
   const focusStrain = computeFocusStrain(
     hrStrain,
@@ -74,6 +84,57 @@ export function FocusMode() {
   useEffect(() => {
     if (!isExtendedIdle) setDismissedIdleCheck(false);
   }, [isExtendedIdle]);
+
+  // Desktop notification when focus strain is high and current site is distracting (debounced)
+  useEffect(() => {
+    if (
+      !currentSession ||
+      isPaused ||
+      focusStrain < FOCUS_STRAIN_NOTIFY_THRESHOLD ||
+      lastSiteClassification?.isDistracting !== true
+    ) return;
+    if (Date.now() - lastNotificationAtRef.current < NOTIFICATION_DEBOUNCE_MS) return;
+    if (!window.notificationBridge) return;
+
+    lastNotificationAtRef.current = Date.now();
+    window.notificationBridge.showNotification({
+      title: 'Focus nudge',
+      body: "You might be getting distracted — consider coming back to your task.",
+    });
+  }, [currentSession, isPaused, focusStrain, lastSiteClassification?.isDistracting]);
+
+  // Desktop notification when user has been on the same site too long (configurable threshold)
+  useEffect(() => {
+    if (!currentSession || isPaused || !window.notificationBridge) return;
+
+    const interval = setInterval(() => {
+      if (!currentSession || isPaused) return;
+      const events = tabEventsRef.current;
+      if (events.length === 0) return;
+      const lastTab = events[events.length - 1];
+      if (!lastTab) return;
+      const timeOnSiteMs = Date.now() - lastTab.timestamp;
+      const thresholdMs = getMaxMinutesOnSite() * 60 * 1000;
+      if (timeOnSiteMs < thresholdMs) return;
+      if (Date.now() - lastTimeOnSiteNotificationAtRef.current < NOTIFICATION_DEBOUNCE_MS) return;
+
+      lastTimeOnSiteNotificationAtRef.current = Date.now();
+      const domain = lastTab.domain || 'this site';
+      const classification = lastSiteClassificationRef.current;
+      const body =
+        classification?.isDistracting === true
+          ? `You've been on ${domain} for a while — consider switching back to your task.`
+          : `You've been on ${domain} for a while. Is this still needed for your task?`;
+      if (window.notificationBridge) {
+        window.notificationBridge.showNotification({
+          title: 'Focus check-in',
+          body,
+        });
+      }
+    }, TIME_ON_SITE_CHECK_INTERVAL_MS);
+
+    return () => clearInterval(interval);
+  }, [currentSession, isPaused, lastSiteClassification?.isDistracting]);
 
   const handleBreak = () => {
     if (isPaused) {

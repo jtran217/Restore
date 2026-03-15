@@ -8,6 +8,7 @@ from flask_cors import CORS
 
 import db
 import models
+from site_classifier import classify as classify_site, ensure_loaded as ensure_site_classifier_loaded
 
 # Fallback thresholds when session has fewer than 2 readings (can't compute std)
 FALLBACK_ABNORMAL_MIN_BPM = 120
@@ -80,6 +81,31 @@ def create_app():
     @app.route("/api/health")
     def health():
         return jsonify({"status": "ok"})
+
+    # ---- Site classification (Hugging Face zero-shot, local) ----
+    @app.route("/api/setup-warmup", methods=["GET", "POST"])
+    def setup_warmup():
+        """Load the site classifier model (downloads from Hugging Face on first run)."""
+        ok = ensure_site_classifier_loaded()
+        return jsonify({"ready": ok})
+
+    @app.route("/api/classify-site", methods=["POST"])
+    def post_classify_site():
+        """Classify a visited site as productive or distracting. Body: { \"url\": \"...\", \"title\": \"...\" }."""
+        data = request.get_json(silent=True)
+        if data is None:
+            return jsonify({"error": "Request body must be valid JSON"}), 400
+        if not isinstance(data, dict):
+            return jsonify({"error": "Request body must be a JSON object"}), 400
+        url = data.get("url") or ""
+        title = data.get("title") or ""
+        if not url.strip():
+            return jsonify({"error": "url is required"}), 400
+        try:
+            domain, is_distracting = classify_site(url.strip(), title.strip())
+            return jsonify({"domain": domain, "is_distracting": is_distracting})
+        except Exception as e:
+            return jsonify({"error": str(e), "is_distracting": False}), 500
 
     # ---- Heart rate ----
     @app.route("/api/heart-rate", methods=["POST"])

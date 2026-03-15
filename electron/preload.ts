@@ -46,4 +46,18 @@ contextBridge.exposeInMainWorld('activityBridge', {
       ipcRenderer.off('tab-update', handler)
     }
   },
+  onSiteClassification(callback: (data: { domain: string; isDistracting: boolean }) => void) {
+    const handler = (_event: Electron.IpcRendererEvent, data: { domain: string; isDistracting: boolean }) => {
+      callback(data)
+    }
+    ipcRenderer.on('site-classification', handler)
+    return () => {
+      ipcRenderer.off('site-classification', handler)
+    }
+  },
+})
+contextBridge.exposeInMainWorld('notificationBridge', {
+  showNotification(options: { title: string; body: string }) {
+    return ipcRenderer.invoke('show-notification', options)
+  },
 })

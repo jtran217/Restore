@@ -1,4 +1,4 @@
-import { app, BrowserWindow, Tray, nativeImage, Menu, ipcMain, powerMonitor } from 'electron'
+import { app, BrowserWindow, Tray, nativeImage, Menu, ipcMain, powerMonitor, Notification } from 'electron'
 import { execSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
 import path from 'node:path'
@@ -241,9 +241,43 @@ const activityMonitor = new ActivityMonitor()
 // Tab Server — local HTTP server on port 9147 to receive Chrome extension events
 // ---------------------------------------------------------------------------
 const TAB_SERVER_PORT = 9147
+const BACKEND_URL = 'http://127.0.0.1:5000'
+const CLASSIFY_CACHE_TTL_MS = 24 * 60 * 60 * 1000 // 24h
+
+interface ClassifyCacheEntry {
+  isDistracting: boolean
+  timestamp: number
+}
 
 class TabServer {
   private server: http.Server | null = null
+  private classifyCache = new Map<string, ClassifyCacheEntry>()
+
+  private async classifySite(url: string, title: string): Promise<{ domain: string; isDistracting: boolean } | null> {
+    try {
+      const parsed = new URL(url.startsWith('http') ? url : `https://${url}`)
+      let domain = parsed.hostname || 'unknown'
+      if (domain.startsWith('www.')) domain = domain.slice(4)
+      const cached = this.classifyCache.get(domain)
+      if (cached && Date.now() - cached.timestamp < CLASSIFY_CACHE_TTL_MS) {
+        return { domain, isDistracting: cached.isDistracting }
+      }
+      const res = await fetch(`${BACKEND_URL}/api/classify-site`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url, title }),
+      })
+      if (!res.ok) return null
+      const data = (await res.json()) as { domain: string; is_distracting: boolean }
+      this.classifyCache.set(data.domain, {
+        isDistracting: data.is_distracting,
+        timestamp: Date.now(),
+      })
+      return { domain: data.domain, isDistracting: data.is_distracting }
+    } catch {
+      return null
+    }
+  }
 
   start() {
     if (this.server) return
@@ -265,12 +299,21 @@ class TabServer {
         req.on('data', (chunk) => { body += chunk.toString() })
         req.on('end', () => {
           try {
-            const data = JSON.parse(body)
+            const data = JSON.parse(body) as { url: string; title: string; timestamp: number }
             if (win && !win.isDestroyed()) {
               win.webContents.send('tab-update', data)
             }
             res.writeHead(200)
             res.end('ok')
+            // Classify in background; don't block response
+            this.classifySite(data.url, data.title ?? '').then((result) => {
+              if (result && win && !win.isDestroyed()) {
+                win.webContents.send('site-classification', {
+                  domain: result.domain,
+                  isDistracting: result.isDistracting,
+                })
+              }
+            }).catch(() => {})
           } catch {
             res.writeHead(400)
             res.end('bad request')
@@ -294,6 +337,7 @@ class TabServer {
       this.server.close()
       this.server = null
     }
+    this.classifyCache.clear()
   }
 }
 
@@ -332,5 +376,16 @@ app.whenReady().then(() => {
   ipcMain.on('activity-stop', () => {
     activityMonitor.stop()
     tabServer.stop()
+  })
+
+  // Desktop notification (focus nudge); icon = astro_side.png
+  ipcMain.handle('show-notification', (_event, { title, body }: { title: string; body: string }) => {
+    const iconPath = path.join(process.env.VITE_PUBLIC ?? '', 'astro_side.png')
+    const notification = new Notification({
+      title: title ?? 'Focus',
+      body: body ?? '',
+      icon: iconPath,
+    })
+    notification.show()
   })
 })
