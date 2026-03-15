@@ -14,20 +14,18 @@ const root = path.resolve(__dirname, '..');
 const backendDir = path.join(root, 'backend');
 
 const isWin = process.platform === 'win32';
-const venvBin = path.join(backendDir, '.venv', isWin ? 'Scripts' : 'bin');
-const venvPython = path.join(venvBin, 'python' + (isWin ? '.exe' : ''));
-const venvPython3 = path.join(venvBin, 'python3' + (isWin ? '.exe' : ''));
+const binDir = isWin ? 'Scripts' : 'bin';
+const pyExe = isWin ? 'python.exe' : 'python';
 
-let python;
-if (fs.existsSync(venvPython)) {
-  python = venvPython;
-} else if (fs.existsSync(venvPython3)) {
-  python = venvPython3;
-} else {
-  python = isWin ? 'python' : 'python3';
-}
+// Check root .venv first (where pip install typically lands), then backend/.venv
+const venvCandidates = [
+  path.join(root, '.venv', binDir, pyExe),
+  path.join(backendDir, '.venv', binDir, pyExe),
+];
 
-const proc = spawn(python, ['-m', 'flask', '--app', 'app', 'run', '--debug'], {
+const python = venvCandidates.find(fs.existsSync) ?? (isWin ? 'python' : 'python3');
+
+const proc = spawn(python, ['-m', 'flask', '--app', 'app', 'run', '--debug', '--port', '5001'], {
   cwd: backendDir,
   stdio: 'inherit',
   shell: false,
