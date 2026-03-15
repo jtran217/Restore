@@ -43,8 +43,8 @@ def main():
 
     # State
     after_id = None
+    fallback_session_id: Optional[str] = None
     base_bpm = 72
-    fallback_session_id: Optional[str] = None  # when no file, reuse for whole run
     trend = 0.0
     stress_spike = 0.0
 
