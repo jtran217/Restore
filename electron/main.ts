@@ -87,33 +87,33 @@ function updateTrayContextMenu() {
   if (!tray) return
   const focusItem = focusSessionActive
     ? {
-        label: 'End Focus Session',
-        click: () => {
-          showOrCreateWindow()
-          if (win && !win.isDestroyed()) {
-            const sendEndFocus = () => win!.webContents.send('tray-end-focus-session')
-            if (win.webContents.isLoading()) {
-              win.webContents.once('did-finish-load', sendEndFocus)
-            } else {
-              sendEndFocus()
-            }
+      label: 'End Focus Session',
+      click: () => {
+        showOrCreateWindow()
+        if (win && !win.isDestroyed()) {
+          const sendEndFocus = () => win!.webContents.send('tray-end-focus-session')
+          if (win.webContents.isLoading()) {
+            win.webContents.once('did-finish-load', sendEndFocus)
+          } else {
+            sendEndFocus()
           }
-        },
-      }
+        }
+      },
+    }
     : {
-        label: 'Start Focus Session',
-        click: () => {
-          showOrCreateWindow()
-          if (win && !win.isDestroyed()) {
-            const sendStartFocus = () => win!.webContents.send('tray-start-focus-session')
-            if (win.webContents.isLoading()) {
-              win.webContents.once('did-finish-load', sendStartFocus)
-            } else {
-              sendStartFocus()
-            }
+      label: 'Start Focus Session',
+      click: () => {
+        showOrCreateWindow()
+        if (win && !win.isDestroyed()) {
+          const sendStartFocus = () => win!.webContents.send('tray-start-focus-session')
+          if (win.webContents.isLoading()) {
+            win.webContents.once('did-finish-load', sendStartFocus)
+          } else {
+            sendStartFocus()
           }
-        },
-      }
+        }
+      },
+    }
   const menuItems: Electron.MenuItemConstructorOptions[] = [
     {
       label: 'Show Restore',
@@ -303,19 +303,11 @@ app.whenReady().then(() => {
   createWindow()
   createTrayIcon()
 
+  // Creating the tray features
   ipcMain.handle('create-tray', () => {
     createTrayIcon()
   })
 
-  ipcMain.on('activity-start', () => {
-    activityMonitor.start()
-    tabServer.start()
-  })
-
-  ipcMain.on('activity-stop', () => {
-    activityMonitor.stop()
-    tabServer.stop()
-  })
   ipcMain.on('tray-set-focus-session-active', (_event, active: boolean) => {
     focusSessionActive = active
     if (tray) {
@@ -329,5 +321,16 @@ app.whenReady().then(() => {
       updateTrayContextMenu()
       updateTrayTooltip()
     }
+
+    // Activity Tracking
+    ipcMain.on('activity-start', () => {
+      activityMonitor.start()
+      tabServer.start()
+    })
+
+    ipcMain.on('activity-stop', () => {
+      activityMonitor.stop()
+      tabServer.stop()
+    })
   })
 })
