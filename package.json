@@ -5,6 +5,9 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "start:backend": "node scripts/start-backend.mjs",
+    "start:controller": "node scripts/start-controller.mjs",
+    "start:all": "concurrently -n frontend,backend,controller -c blue,green,magenta \"npm run dev\" \"npm run start:backend\" \"npm run start:controller\"",
     "build": "tsc && vite build && electron-builder",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
     "preview": "vite preview",
@@ -38,6 +41,7 @@
     "@typescript-eslint/parser": "^7.1.1",
     "@vitejs/plugin-react": "^4.2.1",
     "autoprefixer": "^10.4.27",
+    "concurrently": "^9.2.1",
     "electron": "^30.0.1",
     "electron-builder": "^24.13.3",
     "eslint": "^8.57.0",
@@ -57,7 +61,10 @@
     "directories": {
       "output": "release"
     },
-    "files": ["dist/**/*", "dist-electron/**/*"],
+    "files": [
+      "dist/**/*",
+      "dist-electron/**/*"
+    ],
     "icon": "public/main_icon.png",
     "mac": {
       "icon": "public/main_icon.png",
