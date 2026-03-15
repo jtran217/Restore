@@ -1,4 +1,4 @@
-import { app, BrowserWindow, Tray, nativeImage, Menu, ipcMain, powerMonitor } from 'electron'
+import { app, BrowserWindow, Tray, nativeImage, Menu, ipcMain, powerMonitor, Notification } from 'electron'
 import { execFileSync, execSync, spawn, ChildProcess } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
 import path from 'node:path'
@@ -400,5 +400,16 @@ app.whenReady().then(() => {
   ipcMain.on('activity-stop', () => {
     activityMonitor.stop()
     tabServer.stop()
+  })
+
+  // OS Notifications — fired by the renderer for mascot-driven alerts
+  ipcMain.on('show-os-notification', (_event, { title, body, icon }: { title: string; body: string; icon?: string }) => {
+    if (Notification.isSupported()) {
+      const opts: Electron.NotificationConstructorOptions = { title, body }
+      if (icon) {
+        opts.icon = nativeImage.createFromPath(path.join(process.env.VITE_PUBLIC!, icon))
+      }
+      new Notification(opts).show()
+    }
   })
 })
