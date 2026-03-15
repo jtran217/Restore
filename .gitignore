@@ -7,9 +7,12 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
+# Dependencies & build outputs
 node_modules
 dist
 dist-ssr
+dist-electron
+release
 *.local
 
 # Editor directories and files
@@ -23,9 +26,8 @@ dist-ssr
 *.sln
 *.sw?
 
-# Electron build outputs
-dist-electron
-release
+# Cursor
+.cursor
 
 # Python
 .venv/
