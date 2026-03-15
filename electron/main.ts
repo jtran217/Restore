@@ -304,7 +304,7 @@ const activityMonitor = new ActivityMonitor()
 // Tab Server — local HTTP server on port 9147 to receive Chrome extension events
 // ---------------------------------------------------------------------------
 const TAB_SERVER_PORT = 9147
-const BACKEND_URL = 'http://127.0.0.1:5000'
+const BACKEND_URL = 'http://127.0.0.1:5001'
 const CLASSIFY_CACHE_TTL_MS = 24 * 60 * 60 * 1000 // 24h
 
 interface ClassifyCacheEntry {

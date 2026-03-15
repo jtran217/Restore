@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 
-const BACKEND_URL = 'http://127.0.0.1:5000';
+const BACKEND_URL = 'http://127.0.0.1:5001';
 const SETUP_DONE_KEY = 'flow-setup-done';
 const WARMUP_RETRY_MS = 8000;
 const WARMUP_TIMEOUT_MS = 5 * 60 * 1000; // 5 min for first-time model download
