@@ -25,7 +25,7 @@ const venvCandidates = [
 
 const python = venvCandidates.find(fs.existsSync) ?? (isWin ? 'python' : 'python3');
 
-const proc = spawn(python, ['-m', 'flask', '--app', 'app', 'run', '--debug', '--port', '5001'], {
+const proc = spawn(python, ['-m', 'flask', '--app', 'app', 'run', '--debug', '--port', '39762'], {
   cwd: backendDir,
   stdio: 'inherit',
   shell: false,

@@ -53,21 +53,18 @@ function resolveDevPython(appRoot: string): string {
 }
 
 function startBackend() {
-  const dbPath = path.join(app.getPath('userData'), 'app.db')
-  const env = { ...process.env, DATABASE_URL: `sqlite:///${dbPath}`, BACKEND_PORT: '5001' }
-
+  // In dev, start:all runs start:backend separately using backend/app.db. Do NOT spawn
+  // a second backend (which would use userData and cause DB mismatch with Journal).
   if (VITE_DEV_SERVER_URL) {
-    // In dev mode, spawn Flask directly using the local Python interpreter
-    const python = resolveDevPython(process.env.APP_ROOT as string)
-    backendProcess = spawn(python, ['app.py'], {
-      cwd: path.join(process.env.APP_ROOT as string, 'backend'),
-      env,
-    })
-  } else {
-    // In production, use the PyInstaller-bundled binary from extraResources
-    const backendBinary = path.join(process.resourcesPath, 'backend', 'restore-backend')
-    backendProcess = spawn(backendBinary, [], { env })
+    return
   }
+
+  const dbPath = path.join(app.getPath('userData'), 'app.db')
+  const env = { ...process.env, DATABASE_URL: `sqlite:///${dbPath}`, BACKEND_PORT: '39762' }
+
+  // In production, use the PyInstaller-bundled binary from extraResources
+  const backendBinary = path.join(process.resourcesPath, 'backend', 'restore-backend')
+  backendProcess = spawn(backendBinary, [], { env })
 
   backendProcess.on('error', (err) => {
     console.error('[backend] Failed to start:', err)

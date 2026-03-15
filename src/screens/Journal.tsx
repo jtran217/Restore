@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useSessionStore } from '../store/sessionStore';
+import { getSessionSummary, postSessionSummary } from '../lib/api';
 
 function formatDuration(ms: number): string {
   const totalMin = Math.floor(ms / 60000);
@@ -36,9 +37,54 @@ function getDateGroup(timestamp: number): string {
   return date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
 }
 
+type SessionSummaryData = {
+  average_bpm: number | null;
+  peak_strain: number | null;
+  intervention_count: number | null;
+  reading_count?: number;
+};
+
 export function Journal() {
   const { pastSessions } = useSessionStore();
   const [expandedIndex, setExpandedIndex] = useState<number | null>(null);
+  const [sessionSummaries, setSessionSummaries] = useState<Record<string, SessionSummaryData>>({});
+
+  useEffect(() => {
+    const sessionIds = pastSessions
+      .map((s) => s.sessionId)
+      .filter((id): id is string => !!id);
+    if (sessionIds.length === 0) return;
+    Promise.all(
+      sessionIds.map(async (id) => {
+        let summary = await getSessionSummary(id);
+        if (!summary) {
+          await postSessionSummary(id);
+          summary = await getSessionSummary(id);
+        }
+        return summary ? { id, summary } : null;
+      })
+    )
+      .then((results) => {
+        const map: Record<string, SessionSummaryData> = {};
+        for (const r of results) {
+          if (r) {
+            map[r.id] = {
+              average_bpm: r.summary.average_bpm ?? null,
+              peak_strain: r.summary.peak_strain ?? null,
+              intervention_count:
+                typeof r.summary.intervention_count === 'number'
+                  ? r.summary.intervention_count
+                  : null,
+              reading_count: r.summary.reading_count ?? 0,
+            };
+          }
+        }
+        setSessionSummaries(map);
+      })
+      .catch((err) => {
+        console.warn('[Journal] Failed to fetch session summaries', err);
+      });
+  }, [pastSessions]);
 
   if (pastSessions.length === 0) {
     return (
@@ -162,7 +208,9 @@ export function Journal() {
                             fontSize: 'var(--text-base)',
                           }}
                         >
-                          {session.avgHR}{' '}
+                          {session.sessionId && sessionSummaries[session.sessionId]?.average_bpm != null
+                            ? Math.round(sessionSummaries[session.sessionId].average_bpm!)
+                            : session.avgHR}{' '}
                           <span className="text-text-tertiary" style={{ fontSize: 'var(--text-xs)' }}>
                             bpm
                           </span>
@@ -177,7 +225,7 @@ export function Journal() {
                             textTransform: 'uppercase',
                           }}
                         >
-                          Peak strain
+                          Peak HR
                         </p>
                         <p
                           style={{
@@ -185,7 +233,12 @@ export function Journal() {
                             fontSize: 'var(--text-base)',
                           }}
                         >
-                          {session.peakStrain}
+                          {session.sessionId && sessionSummaries[session.sessionId]?.peak_strain != null
+                            ? Math.round(sessionSummaries[session.sessionId].peak_strain!)
+                            : session.peakStrain}{' '}
+                          <span className="text-text-tertiary" style={{ fontSize: 'var(--text-xs)' }}>
+                            bpm
+                          </span>
                         </p>
                       </div>
                       <div>
@@ -205,7 +258,9 @@ export function Journal() {
                             fontSize: 'var(--text-base)',
                           }}
                         >
-                          {session.interventionCount}
+                          {session.sessionId && sessionSummaries[session.sessionId]?.intervention_count != null
+                            ? sessionSummaries[session.sessionId].intervention_count!
+                            : session.interventionCount}
                         </p>
                       </div>
                     </div>

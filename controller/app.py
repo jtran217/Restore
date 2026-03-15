@@ -11,7 +11,7 @@ import tkinter as tk
 from urllib.request import Request, urlopen
 from urllib.error import URLError, HTTPError
 
-API_BASE = "http://127.0.0.1:5001"
+API_BASE = "http://127.0.0.1:39762"
 API_URL = f"{API_BASE}/api/heart-rate"
 ACTIVE_SESSION_URL = f"{API_BASE}/api/active-session"
 BPM_MIN = 40
@@ -96,10 +96,10 @@ def main():
 
     def compute_bpm() -> int:
         nonlocal trend, stress_spike
-        trend += (random.random() - 0.5) * 5
-        trend = max(-12, min(12, trend))
-        noise = (random.random() - 0.5) * 12
-        bpm = base_bpm + trend * 0.5 + noise * 0.5
+        trend += (random.random() - 0.5) * 12
+        trend = max(-25, min(25, trend))
+        noise = (random.random() - 0.5) * 28
+        bpm = base_bpm + trend * 0.8 + noise * 0.9
 
         if stress_var.get():
             stress_spike = min(50, stress_spike + 15)
@@ -141,8 +141,16 @@ def main():
             set_status(f"Error: {e}", True)
             return False
 
+    tick_count = [0]
+
     def tick() -> None:
-        nonlocal after_id
+        nonlocal after_id, current_session_id
+        tick_count[0] += 1
+        # Re-fetch active session every 5s so we stay in sync when user starts a new focus session
+        if tick_count[0] % 5 == 0:
+            fresh = fetch_active_session()
+            if fresh and fresh != current_session_id:
+                current_session_id = fresh
         bpm = compute_bpm()
         bpm_var.set(str(bpm))
         send_heart_rate(bpm)
