@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { HashRouter, Routes, Route, useNavigate } from "react-router-dom";
 import { AppLayout } from "./components/AppLayout";
 import { Home } from "./screens/Home";
@@ -6,8 +6,10 @@ import { FocusMode } from "./screens/FocusMode";
 import { Intervention } from "./screens/Intervention";
 import { SessionSummary } from "./screens/SessionSummary";
 import { Journal } from "./screens/Journal";
+import { DownloadScreen } from "./screens/DownloadScreen";
 import { useSessionStore } from "./store/sessionStore";
 import { useHeartRateStore } from "./store/heartRateStore";
+import { API_BASE } from "./lib/api";
 
 // MOVE THIS TO A LIB or UTIL
 function TrayImOverwhelmedHandler() {
@@ -96,7 +98,99 @@ function TrayFocusSessionSync() {
   return null;
 }
 
-function App() {
+type InitPhase = "connecting" | "ready" | "needs_download";
+
+function AppGate() {
+  const [phase, setPhase] = useState<InitPhase>("connecting");
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function waitForBackend(): Promise<boolean> {
+      for (let i = 0; i < 60; i++) {
+        if (cancelled) return false;
+        try {
+          const res = await fetch(`${API_BASE}/api/health`);
+          if (res.ok) return true;
+        } catch {
+          // backend not up yet
+        }
+        await new Promise((r) => setTimeout(r, 500));
+      }
+      return false;
+    }
+
+    async function run() {
+      const backendUp = await waitForBackend();
+      if (cancelled) return;
+      if (!backendUp) {
+        setPhase("ready");
+        return;
+      }
+      try {
+        const res = await fetch(`${API_BASE}/api/llm/status`);
+        if (!res.ok) {
+          setPhase("needs_download");
+          return;
+        }
+        const data = (await res.json()) as { ready?: boolean };
+        setPhase(data.ready ? "ready" : "needs_download");
+      } catch {
+        setPhase("needs_download");
+      }
+    }
+
+    run();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  if (phase === "connecting") {
+    return (
+      <div
+        className="fixed inset-0 flex flex-col items-center justify-center gap-6"
+        style={{
+          background: "var(--color-bg)",
+          animation: "panel-slide-in 600ms var(--ease-emerge) both",
+        }}
+      >
+        <div
+          className="loader-spinner"
+          role="status"
+          aria-label="Connecting"
+          style={{
+            width: 32,
+            height: 32,
+            borderRadius: "50%",
+            border: "3px solid var(--color-border)",
+            borderTopColor: "var(--color-focus)",
+            animation: "loader-spin 0.9s var(--ease-flow) infinite",
+          }}
+        />
+        <p
+          style={{
+            fontFamily: "var(--font-display)",
+            fontStyle: "italic",
+            fontSize: "var(--text-lg)",
+            color: "var(--color-text-secondary)",
+          }}
+        >
+          Initializing...
+        </p>
+        <style>{`
+          @keyframes loader-spin {
+            to { transform: rotate(360deg); }
+          }
+        `}</style>
+      </div>
+    );
+  }
+
+  if (phase === "needs_download") {
+    return <DownloadScreen onComplete={() => setPhase("ready")} />;
+  }
+
   return (
     <HashRouter>
       <TrayImOverwhelmedHandler />
@@ -117,6 +211,10 @@ function App() {
       </Routes>
     </HashRouter>
   );
+}
+
+function App() {
+  return <AppGate />;
 }
 
 export default App;
