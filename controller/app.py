@@ -11,7 +11,7 @@ import tkinter as tk
 from urllib.request import Request, urlopen
 from urllib.error import URLError, HTTPError
 
-API_BASE = "http://127.0.0.1:5001"
+API_BASE = "http://127.0.0.1:39762"
 API_URL = f"{API_BASE}/api/heart-rate"
 ACTIVE_SESSION_URL = f"{API_BASE}/api/active-session"
 BPM_MIN = 40

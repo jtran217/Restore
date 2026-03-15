@@ -49,3 +49,6 @@ backend/app.db
 # PyInstaller build artifacts
 backend-dist/
 build/
+
+# llm
+backend/.flow_llm_ready

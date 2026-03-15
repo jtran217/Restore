@@ -1,8 +1,7 @@
 import { app, BrowserWindow, Tray, nativeImage, Menu, ipcMain, powerMonitor, Notification } from 'electron'
-import { execFileSync, execSync, spawn, ChildProcess } from 'node:child_process'
+import { execSync, spawn, ChildProcess } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
 import path from 'node:path'
-import fs from 'node:fs'
 import http from 'node:http'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
@@ -31,43 +30,19 @@ let focusSessionActive = false
 let sessionElapsedMs = 0
 let backendProcess: ChildProcess | null = null
 
-function resolveDevPython(appRoot: string): string {
-  const isWin = process.platform === 'win32'
-  const binDir = isWin ? 'Scripts' : 'bin'
-  const pyExe = isWin ? 'python.exe' : 'python'
-  const candidates = [
-    path.join(appRoot, '.venv', binDir, pyExe),
-    path.join(appRoot, 'backend', '.venv', binDir, pyExe),
-  ]
-  const venvPython = candidates.find((p) => fs.existsSync(p))
-  if (venvPython) return venvPython
-  for (const cmd of ['python3', 'python']) {
-    try {
-      execFileSync(cmd, ['--version'], { stdio: 'ignore' })
-      return cmd
-    } catch {
-      // not found
-    }
-  }
-  return 'python3'
-}
-
 function startBackend() {
-  const dbPath = path.join(app.getPath('userData'), 'app.db')
-  const env = { ...process.env, DATABASE_URL: `sqlite:///${dbPath}`, BACKEND_PORT: '5001' }
-
+  // In dev, start:all runs start:backend separately using backend/app.db. Do NOT spawn
+  // a second backend (which would use userData and cause DB mismatch with Journal).
   if (VITE_DEV_SERVER_URL) {
-    // In dev mode, spawn Flask directly using the local Python interpreter
-    const python = resolveDevPython(process.env.APP_ROOT as string)
-    backendProcess = spawn(python, ['app.py'], {
-      cwd: path.join(process.env.APP_ROOT as string, 'backend'),
-      env,
-    })
-  } else {
-    // In production, use the PyInstaller-bundled binary from extraResources
-    const backendBinary = path.join(process.resourcesPath, 'backend', 'restore-backend')
-    backendProcess = spawn(backendBinary, [], { env })
+    return
   }
+
+  const dbPath = path.join(app.getPath('userData'), 'app.db')
+  const env = { ...process.env, DATABASE_URL: `sqlite:///${dbPath}`, BACKEND_PORT: '39762' }
+
+  // In production, use the PyInstaller-bundled binary from extraResources
+  const backendBinary = path.join(process.resourcesPath, 'backend', 'restore-backend')
+  backendProcess = spawn(backendBinary, [], { env })
 
   backendProcess.on('error', (err) => {
     console.error('[backend] Failed to start:', err)
