@@ -1,7 +1,9 @@
 /**
  * Backend API client. Swallows errors; does not block UI.
+ * In dev, use relative path so Vite proxies /api to backend (avoids CORS).
+ * In production (Electron), use full URL.
  */
-const API_BASE = 'http://127.0.0.1:5001';
+const API_BASE = import.meta.env.DEV ? '' : 'http://127.0.0.1:39762';
 
 async function request<T>(
   path: string,
@@ -100,6 +102,68 @@ export async function postSessionSummary(
     body: JSON.stringify({ session_id: sessionId }),
   });
   return result !== null;
+}
+
+/** Session summary from session_summaries table */
+export interface SessionSummaryResponse {
+  id?: number;
+  session_id: string;
+  average_bpm: number | null;
+  peak_strain: number | null;
+  min_bpm: number | null;
+  intervention?: boolean;
+  intervention_count?: number;
+  start_time?: string | null;
+  end_time?: string | null;
+  duration_minutes?: number | null;
+  reading_count?: number;
+  abnormal_count?: number;
+  journal_count?: number;
+}
+
+/** GET session summary from session_summaries table via backend API */
+export async function getSessionSummary(
+  sessionId: string
+): Promise<SessionSummaryResponse | null> {
+  try {
+    const res = await fetch(
+      `${API_BASE}/api/session-summary/${encodeURIComponent(sessionId)}`
+    );
+    if (res.status === 404 || !res.ok) return null;
+    return (await res.json()) as SessionSummaryResponse;
+  } catch (e) {
+    console.warn('[api] getSessionSummary', e);
+    return null;
+  }
+}
+
+export interface HeartRateReading {
+  id: number;
+  timestamp: string | null;
+  bpm: number;
+  session_id: string;
+  is_abnormal: boolean;
+}
+
+export interface HeartRateSessionResponse {
+  readings: HeartRateReading[];
+  summary: { avg_bpm: number | null; max_bpm: number | null };
+}
+
+/** GET heart rate readings for a session (for sparkline) */
+export async function getHeartRateSession(
+  sessionId: string
+): Promise<HeartRateSessionResponse | null> {
+  try {
+    const res = await fetch(
+      `${API_BASE}/api/heart-rate/session/${encodeURIComponent(sessionId)}`
+    );
+    if (!res.ok) return null;
+    return (await res.json()) as HeartRateSessionResponse;
+  } catch (e) {
+    console.warn('[api] getHeartRateSession', e);
+    return null;
+  }
 }
 
 export async function postActiveSession(sessionId: string): Promise<boolean> {

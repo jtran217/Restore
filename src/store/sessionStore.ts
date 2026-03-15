@@ -33,7 +33,7 @@ interface SessionStore {
   endSession: (data?: Partial<SessionData>) => void;
   triggerIntervention: () => void;
   resumeFocus: () => void;
-  saveToJournal: (reflectionText?: string) => void;
+  saveToJournal: (reflectionText?: string) => void | Promise<void>;
   pauseSession: () => void;
   resumeSession: () => void;
   setPomodoroPhase: (phase: PomodoroPhase) => void;
@@ -119,13 +119,13 @@ export const useSessionStore = create<SessionStore>((set, get) => ({
     set({ remainingMs: ms });
   },
 
-  saveToJournal: (reflectionText?: string) => {
+  saveToJournal: async (reflectionText?: string) => {
     const current = get().currentSession;
     if (!current) return;
     const text = reflectionText?.trim() || 'Session ended.';
     if (current.sessionId) {
       postJournal(current.sessionId, 'session_ended', text);
-      postSessionSummary(current.sessionId);
+      await postSessionSummary(current.sessionId);
       clearActiveSession();
     }
     const sessions = [...get().pastSessions, current];

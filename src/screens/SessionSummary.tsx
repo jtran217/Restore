@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useSessionStore } from '../store/sessionStore';
 import { useHeartRateStore } from '../store/heartRateStore';
 import { Sparkline } from '../components/Sparkline';
+import { getSessionSummary, getHeartRateSession, postSessionSummary } from '../lib/api';
 
 function formatDuration(ms: number): string {
   const totalMin = Math.floor(ms / 60000);
@@ -77,6 +78,33 @@ export function SessionSummary() {
   const { currentSession, saveToJournal, startSession } = useSessionStore();
   const { hrHistory } = useHeartRateStore();
   const [reflectionText, setReflectionText] = useState('');
+  const [sessionSummary, setSessionSummary] = useState<{
+    average_bpm: number | null;
+    peak_strain: number | null;
+    intervention: boolean;
+    intervention_count: number;
+  } | null>(null);
+  const [sparklineReadings, setSparklineReadings] = useState<{ value: number }[]>([]);
+
+  useEffect(() => {
+    const sessionId = currentSession?.sessionId;
+    if (!sessionId) return;
+    // POST first to create/update session_summaries row from heart_rate_readings + journal
+    postSessionSummary(sessionId).then(() => getSessionSummary(sessionId)).then((summary) => {
+      if (!summary) return;
+      setSessionSummary({
+        average_bpm: summary.average_bpm,
+        peak_strain: summary.peak_strain,
+        intervention: summary.intervention ?? false,
+        intervention_count: summary.intervention_count ?? 0,
+      });
+    });
+    getHeartRateSession(sessionId).then((res) => {
+      if (res?.readings?.length) {
+        setSparklineReadings(res.readings.map((r) => ({ value: r.bpm })));
+      }
+    });
+  }, [currentSession?.sessionId]);
 
   if (!currentSession) {
     navigate('/');
@@ -85,6 +113,20 @@ export function SessionSummary() {
 
   const duration = (currentSession.endTime || Date.now()) - currentSession.startTime;
   const focusQuality = currentSession.focusQuality;
+  const displayAvgHR =
+    sessionSummary?.average_bpm != null
+      ? Math.round(sessionSummary.average_bpm)
+      : currentSession.avgHR;
+  const displayPeakHR =
+    sessionSummary?.peak_strain != null
+      ? Math.round(sessionSummary.peak_strain)
+      : currentSession.peakStrain;
+  const displayInterventions =
+    sessionSummary != null
+      ? (sessionSummary.intervention_count ?? currentSession.interventionCount)
+      : currentSession.interventionCount;
+  const sparklineData =
+    sparklineReadings.length >= 2 ? sparklineReadings : hrHistory;
 
   const handleSaveAndHome = () => {
     saveToJournal(reflectionText);
@@ -114,6 +156,19 @@ export function SessionSummary() {
           >
             {formatDate(currentSession.startTime)} · {formatDuration(duration)}
           </p>
+          {currentSession.sessionId && (
+            <p
+              className="text-text-tertiary mt-1"
+              style={{
+                fontFamily: 'var(--font-mono)',
+                fontSize: 'var(--text-xs)',
+                opacity: 0.7,
+              }}
+              title="Session ID (for troubleshooting)"
+            >
+              Session: {currentSession.sessionId}
+            </p>
+          )}
         </div>
 
         {/* Focus Quality — hero number */}
@@ -159,26 +214,26 @@ export function SessionSummary() {
           >
             Heart rate — full session
           </p>
-          <Sparkline data={hrHistory} width={600} height={100} />
+          <Sparkline data={sparklineData} width={600} height={100} />
         </div>
 
-        {/* Stat cards */}
+        {/* Stat cards — from session_summaries table */}
         <div className="grid grid-cols-2 gap-4 mb-4">
           <StatCard
             label="Avg HR"
-            value={currentSession.avgHR}
+            value={displayAvgHR}
             unit="bpm"
           />
           <StatCard
-            label="Peak strain"
-            value={currentSession.peakStrain}
-            unit="/100"
+            label="Peak HR"
+            value={displayPeakHR}
+            unit="bpm"
           />
         </div>
         <div className="grid grid-cols-3 gap-4 mb-4">
           <StatCard
             label="Interventions"
-            value={currentSession.interventionCount}
+            value={displayInterventions}
           />
           <StatCard
             label="Apps used"
